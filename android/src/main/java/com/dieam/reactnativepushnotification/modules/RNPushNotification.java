@@ -32,6 +32,8 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
     private final Random mRandomNumberGenerator = new Random(System.currentTimeMillis());
     private RNPushNotificationJsDelivery mJsDelivery;
 
+    private Bundle savedBundle = null;
+
     public RNPushNotification(ReactApplicationContext reactContext) {
         super(reactContext);
 
@@ -59,12 +61,18 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
     }
 
     public void onNewIntent(Intent intent) {
-        if (intent.hasExtra("notification")) {
-            Bundle bundle = intent.getBundleExtra("notification");
-            bundle.putBoolean("foreground", false);
-            intent.putExtra("notification", bundle);
-            mJsDelivery.notifyNotification(bundle);
+        Bundle bundle;
+        if (intent.hasExtra("google.message_id")) {
+            bundle = intent.getExtras();
+            bundle.putBoolean("userInteraction", true);
+        } else if (intent.hasExtra("notification")) {
+            bundle = intent.getBundleExtra("notification");
         }
+
+        if (bundle != null) {
+            bundle.putBoolean("foreground", false);
+            mJsDelivery.notifyNotification(bundle);
+         }
     }
 
     private void registerNotificationsRegistration() {
@@ -151,7 +159,15 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
         Activity activity = getCurrentActivity();
         if (activity != null) {
             Intent intent = activity.getIntent();
-            Bundle bundle = intent.getBundleExtra("notification");
+            Bundle bundle;
+
+            if (intent.hasExtra("google.message_id")) {
+                bundle = intent.getExtras();
+                bundle.putBoolean("userInteraction", true);
+            } else if (intent.hasExtra("notification")) {
+                bundle = intent.getBundleExtra("notification");
+            }
+
             if (bundle != null) {
                 bundle.putBoolean("foreground", false);
                 String bundleString = mJsDelivery.convertJSON(bundle);
@@ -160,6 +176,7 @@ public class RNPushNotification extends ReactContextBaseJavaModule implements Ac
         }
         promise.resolve(params);
     }
+
 
     @ReactMethod
     public void setApplicationIconBadgeNumber(int number) {
