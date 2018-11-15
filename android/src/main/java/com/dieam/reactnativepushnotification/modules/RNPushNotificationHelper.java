@@ -4,6 +4,7 @@ package com.dieam.reactnativepushnotification.modules;
 import android.app.AlarmManager;
 import android.app.Application;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -34,8 +35,10 @@ import static com.dieam.reactnativepushnotification.modules.RNPushNotificationAt
 public class RNPushNotificationHelper {
     public static final String PREFERENCES_KEY = "rn_push_notification";
     private static final long DEFAULT_VIBRATION = 300L;
+    private static final String NOTIFICATION_CHANNEL_ID = "rn-push-notification-channel-id";
 
     private Context context;
+    private RNPushNotificationConfig config;
     private final SharedPreferences scheduledNotificationsPersistence;
     private static final int ONE_MINUTE = 60 * 1000;
     private static final long ONE_HOUR = 60 * ONE_MINUTE;
@@ -43,6 +46,7 @@ public class RNPushNotificationHelper {
 
     public RNPushNotificationHelper(Application context) {
         this.context = context;
+        this.config = new RNPushNotificationConfig(context);
         this.scheduledNotificationsPersistence = context.getSharedPreferences(RNPushNotificationHelper.PREFERENCES_KEY, Context.MODE_PRIVATE);
     }
 
@@ -157,7 +161,7 @@ public class RNPushNotificationHelper {
                 title = context.getPackageManager().getApplicationLabel(appInfo).toString();
             }
 
-            NotificationCompat.Builder notification = new NotificationCompat.Builder(context)
+            NotificationCompat.Builder notification = new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                     .setContentTitle(title)
                     .setTicker(bundle.getString("ticker"))
                     .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
@@ -261,8 +265,11 @@ public class RNPushNotificationHelper {
                 notification.setCategory(NotificationCompat.CATEGORY_CALL);
 
                 String color = bundle.getString("color");
+                int defaultColor = this.config.getNotificationColor();
                 if (color != null) {
                     notification.setColor(Color.parseColor(color));
+                } else if (defaultColor != -1) {
+                    notification.setColor(defaultColor);
                 }
             }
 
@@ -272,7 +279,7 @@ public class RNPushNotificationHelper {
                     PendingIntent.FLAG_UPDATE_CURRENT);
 
             NotificationManager notificationManager = notificationManager();
-
+            checkOrCreateChannel(notificationManager);
             notification.setContentIntent(pendingIntent);
 
             if (!bundle.containsKey("vibrate") || bundle.getBoolean("vibrate")) {
@@ -463,5 +470,56 @@ public class RNPushNotificationHelper {
         } else {
             editor.apply();
         }
+    }
+
+    private static boolean channelCreated = false;
+    private void checkOrCreateChannel(NotificationManager manager) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+            return;
+        if (channelCreated)
+            return;
+        if (manager == null)
+            return;
+
+        Bundle bundle = new Bundle();
+
+        int importance = NotificationManager.IMPORTANCE_HIGH;
+        final String importanceString = bundle.getString("importance");
+
+        if (importanceString != null) {
+            switch(importanceString.toLowerCase()) {
+                case "default":
+                    importance = NotificationManager.IMPORTANCE_DEFAULT;
+                    break;
+                case "max":
+                    importance = NotificationManager.IMPORTANCE_MAX;
+                    break;
+                case "high":
+                    importance = NotificationManager.IMPORTANCE_HIGH;
+                    break;
+                case "low":
+                    importance = NotificationManager.IMPORTANCE_LOW;
+                    break;
+                case "min":
+                    importance = NotificationManager.IMPORTANCE_MIN;
+                    break;
+                case "none":
+                    importance = NotificationManager.IMPORTANCE_NONE;
+                    break;
+                case "unspecified":
+                    importance = NotificationManager.IMPORTANCE_UNSPECIFIED;
+                    break;
+                default:
+                    importance = NotificationManager.IMPORTANCE_HIGH;
+            }
+        }
+
+        NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, this.config.getChannelName(), importance);
+        channel.setDescription(this.config.getChannelDescription());
+        channel.enableLights(true);
+        channel.enableVibration(true);
+
+        manager.createNotificationChannel(channel);
+        channelCreated = true;
     }
 }
