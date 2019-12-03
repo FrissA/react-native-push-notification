@@ -22,9 +22,15 @@ public class RNPushNotificationRegistrationService extends IntentService {
         try {
             String SenderID = intent.getStringExtra("senderID");
             InstanceID instanceID = InstanceID.getInstance(this);
-            String token = instanceID.getToken(SenderID,
-                    GoogleCloudMessaging.INSTANCE_ID_SCOPE, null);
-            sendRegistrationToken(token);
+            if (SenderID.isEmpty()) {
+                Log.v(LOG_TAG, "abandonPermissions: ");
+                instanceID.deleteInstanceID();
+            } else {
+                Log.v(LOG_TAG, "registerPushNotification: ");
+                String token = instanceID.getToken(SenderID,
+                        GoogleCloudMessaging.INSTANCE_ID_SCOPE, null);
+                sendRegistrationToken(token);
+            }
         } catch (Exception e) {
             Log.e(LOG_TAG, TAG + " failed to process intent " + intent, e);
         }

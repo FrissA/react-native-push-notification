@@ -62,7 +62,7 @@ NotificationsComponent.prototype.setApplicationIconBadgeNumber = function(number
 };
 
 NotificationsComponent.prototype.abandonPermissions = function() {
-	/* Void */
+	RNPushNotification.abandonPermissions();
 };
 
 NotificationsComponent.prototype.checkPermissions = function(callback: Function) {
@@ -75,8 +75,12 @@ NotificationsComponent.prototype.addEventListener = function(type: string, handl
 		listener =  DeviceEventEmitter.addListener(
 			DEVICE_NOTIF_EVENT,
 			function(notifData) {
-				var data = JSON.parse(notifData.dataJSON);
-				handler(data);
+				try {
+					var data = JSON.parse(notifData.dataJSON);
+					handler(data);
+				} catch(error) {
+					console.log('Could not parse JSON'); // to prevent clash with OneSignal
+				}
 			}
 		);
 	} else if (type === 'register') {
